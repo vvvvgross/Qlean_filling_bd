@@ -14,17 +14,14 @@ conn = psycopg2.connect(
 )
 cursor = conn.cursor()
 
-# Инициализируем Faker
 fake = Faker('ru_RU')
 
-# Количество записей для основных таблиц
 AMOUNT_USERS = 10000
 AMOUNT_EMPLOYEES = 2000
 AMOUNT_PAYMENT_METHODS = 5000
 AMOUNT_PRODUCTS = 70000
 AMOUNT_SERVICES = 70000
 
-# Списки для услуг и дополнительных услуг
 additional_services_list = [
     "Дезинфекция ковров",
     "Удаление запахов",
@@ -266,7 +263,7 @@ def fill_products():
     return
 
 def fill_orders(user_ids, employee_ids, payment_ids):
-    batch_size = 1000  # Уменьшите размер batch-а для отладки
+    batch_size = 1000  
     total_inserted = 0
     order_ids = []
 
@@ -275,12 +272,10 @@ def fill_orders(user_ids, employee_ids, payment_ids):
         batch_end = min(batch_start + batch_size, len(user_ids))
         print(f"Обработка пользователей с {batch_start} по {batch_end}")
         for user_id in user_ids[batch_start:batch_end]:
-            # Каждый пользователь может иметь от 1 до 30 заказов
             num_orders = random.randint(1, 30)
             for _ in range(num_orders):
                 employee_id = random.choice(employee_ids)
                 payment_id = random.choice(payment_ids)
-                # Генерация случайной даты заказа
                 order_date = fake.date_time_between(start_date='-1y', end_date='now')
                 values_list.append((user_id, employee_id, payment_id, order_date))
 
@@ -291,7 +286,6 @@ def fill_orders(user_ids, employee_ids, payment_ids):
             continue
 
         try:
-            # Получаем текущий максимальный order_id
             cursor.execute('SELECT MAX(order_id) FROM orders')
             max_order_id_before = cursor.fetchone()[0]
             if max_order_id_before is None:
@@ -301,11 +295,9 @@ def fill_orders(user_ids, employee_ids, payment_ids):
             cursor.executemany(query, values_list)
             conn.commit()
 
-            # Получаем новый максимальный order_id
             cursor.execute('SELECT MAX(order_id) FROM orders')
             max_order_id_after = cursor.fetchone()[0]
 
-            # Рассчитываем вставленные order_ids
             num_inserted = max_order_id_after - max_order_id_before
             batch_order_ids = list(range(max_order_id_before + 1, max_order_id_after + 1))
             order_ids.extend(batch_order_ids)
@@ -331,7 +323,6 @@ def fill_address(order_ids):
         values_list = []
         batch_end = min(batch_start + batch_size, len(order_ids))
         for order_id in order_ids[batch_start:batch_end]:
-            # У каждого заказа должен быть хотя бы один адрес
             city = fake.city()[:100]
             region = fake.region()[:100]
             street = fake.street_name()[:100]
@@ -346,7 +337,6 @@ def fill_address(order_ids):
             cursor.executemany(query, values_list)
             conn.commit()
 
-            # Получаем вставленные address_ids
             cursor.execute('SELECT MAX(address_id) FROM address')
             max_address_id = cursor.fetchone()[0]
             address_ids.extend(range(max_address_id - len(values_list) + 1, max_address_id + 1))
@@ -368,7 +358,6 @@ def fill_user_have_addresses(user_ids, address_ids):
         values_list = []
         batch_end = min(batch_start + batch_size, len(user_ids))
         for user_id in user_ids[batch_start:batch_end]:
-            # Каждый пользователь имеет от 1 до 3 адресов
             num_addresses = random.randint(1, 3)
             user_addresses = random.choices(address_ids, k=num_addresses)
             for address_id in user_addresses:
@@ -409,12 +398,10 @@ def fill_review(user_ids, employee_ids):
         values_list = []
         batch_end = min(batch_start + batch_size, len(user_ids))
         for user_id in user_ids[batch_start:batch_end]:
-            # Каждый пользователь может оставить от 1 до 10 отзывов
             num_reviews = random.randint(1, 10)
             for _ in range(num_reviews):
                 employee_id = random.choice(employee_ids)
                 text = random.choice(review_texts)
-                # Подбираем оценку в соответствии с текстом
                 if "отлично" in text.lower() or "превзошли" in text.lower() or "рекомендую" in text.lower():
                     grade = 5
                 elif "доволен" in text.lower() or "хороший" in text.lower() or "качественно" in text.lower():
@@ -449,7 +436,6 @@ def fill_status(order_ids):
         values_list = []
         batch_end = min(batch_start + batch_size, len(order_ids))
         for order_id in order_ids[batch_start:batch_end]:
-            # У каждого заказа должен быть хотя бы один статус
             num_statuses = random.randint(1, 4)
             status_sequence = random.choices(status_names, k=num_statuses)
             for status_name in status_sequence:
@@ -540,7 +526,6 @@ def fill_order_contains_services(order_ids, service_ids):
         values_list = []
         batch_end = min(batch_start + batch_size, len(order_ids))
         for order_id in order_ids[batch_start:batch_end]:
-            # Каждый заказ может содержать от 1 до 10 услуг
             num_services = random.randint(1, 10)
             services = random.sample(service_ids, min(num_services, len(service_ids)))
             for service_id in services:
@@ -563,7 +548,6 @@ def fill_order_contains_products(order_ids, product_ids):
         values_list = []
         batch_end = min(batch_start + batch_size, len(order_ids))
         for order_id in order_ids[batch_start:batch_end]:
-            # Каждый заказ может содержать от 1 до 10 продуктов
             num_products = random.randint(1, 10)
             products = random.sample(product_ids, min(num_products, len(product_ids)))
             for product_id in products:
@@ -617,7 +601,6 @@ def main():
         fill_service()
         fill_products()
 
-        # Получаем списки идентификаторов
         cursor.execute('SELECT user_id FROM users')
         user_ids = [row[0] for row in cursor.fetchall()]
         cursor.execute('SELECT employee_id FROM employee')
@@ -639,8 +622,7 @@ def main():
         if not payment_ids:
             print("Список payment_ids пуст.")
             return
-
-        # Выводим примеры идентификаторов
+            
         print(f"Примеры user_ids: {user_ids[:5]}")
         print(f"Примеры employee_ids: {employee_ids[:5]}")
         print(f"Примеры payment_ids: {payment_ids[:5]}")
